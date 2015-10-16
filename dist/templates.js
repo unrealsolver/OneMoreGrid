@@ -1,0 +1,1 @@
+angular.module("kxGrid").run(["$templateCache", function($templateCache) {$templateCache.put("kxgrid.html","<table class=\"table tablesaw\"><thead><tr><th>Hey</th></tr></thead><tbody><tr><td>you!</td></tr></tbody></table>");}]);

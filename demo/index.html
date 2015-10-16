@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>kxGrid demo</title>
+
+  <link rel="stylesheet" href="/tablesaw/dist/tablesaw.css"/>
+</head>
+
+<body ng-app="kxGrid">
+  <h1>Hi there! {{1+4}}</h1>
+  <kx-grid/>
+  <table class="tablesaw"
+    data-tablesaw-minimap
+    data-tablesaw-mode="columntoggle"
+  >
+    <thead>
+      <tr>
+        <th>Title</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Test</td>
+      </tr>
+    <tbody>
+  </table>
+
+  <script src="/angular/angular.js"></script>
+  <script src="/jquery/dist/jquery.js"></script>
+  <script src="/tablesaw/dist/tablesaw.js"></script>
+  <script src="/app.js"></script>
+  <script src="/templates.js"></script>
+</body>
+</html>
