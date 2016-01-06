@@ -4,31 +4,36 @@
   <title>kxGrid demo</title>
 
   <link rel="stylesheet" href="/tablesaw/dist/tablesaw.css"/>
+  <link rel="stylesheet" href="/app.css"/>
+  <link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Open+Sans" />
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css">
+  <style>
+    body {
+      box-sizing: border-box;
+      font-family: Open Sans;
+      font-size: 14px;
+      background: #e2f6e6;
+      height: 600px;
+      margin: 0;
+      padding: 20px;
+    }
+    .tablesaw th.numeric, .tablesaw td.numeric {
+      text-align: right;
+      width: 0;
+    }
+  </style>
 </head>
 
-<body ng-app="kxGrid">
-  <h1>Hi there! {{1+4}}</h1>
-  <kx-grid/>
-  <table class="tablesaw"
-    data-tablesaw-minimap
-    data-tablesaw-mode="columntoggle"
-  >
-    <thead>
-      <tr>
-        <th>Title</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>Test</td>
-      </tr>
-    <tbody>
-  </table>
+<body ng-app="kxGrid" ng-controller="demoCtrl">
+  <span kx-grid="options"></span>
+  <div paginator="p"></div>
 
+  <script src="/underscore/underscore-min.js"></script>
   <script src="/angular/angular.js"></script>
   <script src="/jquery/dist/jquery.js"></script>
   <script src="/tablesaw/dist/tablesaw.js"></script>
   <script src="/app.js"></script>
   <script src="/templates.js"></script>
+  <script src="/demo.js"></script>
 </body>
 </html>

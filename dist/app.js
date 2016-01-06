@@ -2,12 +2,198 @@ var APP;
 
 APP = angular.module('kxGrid', []);
 
-APP.directive('kxGrid', function() {
+APP.directive('kxGrid', function($timeout) {
   return {
-    restrict: 'E',
+    restrict: 'A',
     templateUrl: 'kxgrid.html',
+    scope: {
+      kxGrid: '='
+    },
     controller: function($scope, $element) {
-      return $($element).trigger('enhance.tablesaw');
+      var dataProcessingChain, externalFilters, getStartingPriority, makePriorityOrderGenerator, pog, sort, sortingProcessor;
+      $scope.types = {
+        "default": {
+          type: 'default',
+          isSortable: true,
+          isVisible: true,
+          isFilterable: true,
+          priority: null,
+          headerClass: [],
+          headerTplUrl: 'defaultHeader.html',
+          cellClass: ['no-overflow'],
+          cellTplUrl: 'defaultCell.html',
+          cellFilter: ''
+        },
+        number: {
+          cellTplUrl: 'numberCell.html',
+          headerClass: ['numeric', 'collapse'],
+          cellClass: ['numeric'],
+          cellFilter: 'number:3',
+          priority: 1,
+          precision: 0
+        },
+        selection: {
+          cellTplUrl: 'selectionCell.html',
+          headerClass: ['collapse'],
+          headerTplUrl: 'selectionHeader.html',
+          isSortable: false,
+          isFilterable: false,
+          ctrl: function($scope) {
+            $scope.ctrl = {
+              checked: false
+            };
+            return $scope.$watch('ctrl.checked', function(val) {
+              return _.each($scope.$data, function(d) {
+                return d.$selected = $scope.ctrl.checked;
+              });
+            });
+          }
+        },
+        expand: {
+          isSortable: false,
+          isFilterable: false,
+          cellTplUrl: 'expandCell.html',
+          headerClass: ['collapse'],
+          priority: 'persistent'
+        },
+        actions: {
+          isSortable: false,
+          isFilterable: false,
+          cellTplUrl: 'actionsCell.html',
+          cellClass: ['actions-cell'],
+          headerClass: ['collapse'],
+          priority: 'persistent'
+        }
+      };
+      $scope.dpcState = {};
+      makePriorityOrderGenerator = function(priority) {
+        return function() {
+          return ++priority;
+        };
+      };
+      $scope.kxGrid.api = {
+        setVisibility: function(field, isVisible) {
+          return _.findWhere($scope.$columns, {
+            field: field
+          }).isVisible = isVisible;
+        }
+      };
+      getStartingPriority = function(columns) {
+        return +_.max($scope.kxGrid.columns, function(d) {
+          return +d.priority || 0;
+        }).priority || 0;
+      };
+      pog = makePriorityOrderGenerator(getStartingPriority($scope.kxGrid.columns));
+      $scope.$columns = _.map($scope.kxGrid.columns, function(d) {
+        var column, contextual;
+        contextual = {};
+        column = _.defaults.apply(_, [{}, d, contextual, $scope.types[d.type], $scope.types["default"]]);
+        if (column.isSortable) {
+          column.headerClass.push('sortable');
+        }
+        return column;
+      });
+      externalFilters = _.chain($scope.column).where({
+        isFilterable: true
+      }).map(function(d) {
+        return d;
+      });
+      sort = function(column) {
+        _.each($scope.$columns, function(d) {
+          if (d === column) {
+            if (d.$sort === 'asc') {
+              return d.$sort = 'desc';
+            } else {
+              return d.$sort = 'asc';
+            }
+          } else {
+            return d.$sort = null;
+          }
+        });
+        $scope.dpcState.sorting = {
+          field: column.field,
+          order: column.$sort
+        };
+        return $scope.update();
+      };
+      $scope.rowClicked = function(row) {
+        return _.each($scope.$data, function(d) {
+          if (d === row) {
+            return d.$choosen ^= true;
+          } else {
+            return d.$choosen = false;
+          }
+        });
+      };
+      $scope.api = {
+        sort: sort
+      };
+      sortingProcessor = function(input, ctx) {
+        var sorted;
+        if (ctx.sorting) {
+          sorted = _.sortBy(input, function(d) {
+            return d[ctx.sorting.field];
+          });
+          if (ctx.sorting.order === 'asc') {
+            return sorted;
+          }
+          return _.foldr(sorted, (function(m, d) {
+            return m.concat(d);
+          }), []);
+        } else {
+          return input;
+        }
+      };
+      dataProcessingChain = [].concat($scope.kxGrid.dataProcessingChain || []);
+      $scope.update = function(processor) {
+        console.log($scope.kxGrid.data);
+        if (processor) {
+          console.log(processor.who);
+        }
+        return $scope.$data = _.foldl(dataProcessingChain, function(m, p) {
+          return p.process(m, $scope.dpcState);
+        }, $scope.kxGrid.data || []);
+      };
+      $scope.update();
+      $scope.$watch('kxGrid.data', function(val) {
+        _.each(dataProcessingChain, function(d) {
+          return d.init(function() {
+            console.log(this);
+            return $scope.update(this);
+          }, val || [], $scope.$columns);
+        });
+        $scope.update();
+        return setTimeout(function() {
+          return $($element.find('table')).table().data('table').refresh();
+        });
+      });
+      return setTimeout(function() {
+        return $($element).trigger('enhance.tablesaw');
+      });
+    }
+  };
+});
+
+APP.directive('paginator', function() {
+  return {
+    restrict: 'A',
+    template: '<h2>{{paginator}}</h2>\n<button ng-click="next()">Next</button>',
+    scope: {
+      paginator: '='
+    },
+    controller: function($scope, $element) {
+      var processor, state;
+      processor = $scope.paginator;
+      state = processor.state;
+      console.log(state);
+      return $scope.next = function() {
+        if (state.page === state.total) {
+          state.page = 1;
+        } else {
+          state.page++;
+        }
+        return processor.cb();
+      };
     }
   };
 });

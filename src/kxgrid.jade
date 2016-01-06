@@ -1,7 +1,46 @@
-table.table.tablesaw
+doctype html
+table.table.tablesaw.kxgrid(
+  data-tablesaw-mode="columntoggle"
+  data-tablesaw-minimap,
+)
   thead
     tr
-      th Hey
+      th.kxth(
+        ng-repeat="col in $columns"
+        ng-class="col.headerClass"
+        data-tablesaw-priority="{{col.priority}}"
+        ng-if="col.isVisible"
+        ng-click="col.isSortable && api.sort(col)"
+      )
+        ng-include(src="col.headerTplUrl")
+        i.fa.fa-caret-up.fa-lg.sorting-indicator(
+          ng-show="col.$sort=='asc'")
+        i.fa.fa-caret-down.fa-lg.sorting-indicator(
+          ng-show="col.$sort=='desc'")
   tbody
-    tr
-      td you!
+    tr.kxtr(
+      ng-repeat-start="row in $data"
+      ng-click="rowClicked(row)"
+      ng-class="{'choosen-row': row.$choosen}"
+    )
+      td.kxtd(
+        ng-repeat="col in $columns"
+        ng-class="col.cellClass"
+        ng-if="col.isVisible"
+        ng-include="col.cellTplUrl"
+      ) 
+    tr(
+      ng-repeat-end=""
+      ng-show="row.$expanded"
+    )
+      td(
+        colspan="99"
+        ng-include="kxGrid.expandableTplUrl"
+      )
+
+div(ng-hide="$data.length")
+  span(
+    style="width: 100%; display: inline-block; text-align: center; padding: 25px; color: #0A2841;"
+  )
+    i.fa.fa-4x.fa-spin.fa-spinner
+    h3 Loading

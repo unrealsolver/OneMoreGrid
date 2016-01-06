@@ -1,7 +1,7 @@
 var express = require('express')
 var app = express()
 
-app.use(require('connect-livereload')())
+//app.use(require('connect-livereload')())
 app.use(express.static('demo'))
 app.use(express.static('dist'))
 app.use(express.static('bower_components'))
