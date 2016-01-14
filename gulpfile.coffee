@@ -44,11 +44,13 @@ gulp.task 'watch', ->
     "#{DIST}/*.js",
     "#{DIST}/*.css",
     './demo/*'
-  ], ['pack', server.notify]
+  ], (event) ->
+    gulp.run 'pack'
+    server.notify event
 
 
 gulp.task 'server', ->
-  server.run ['server.js'], {}, 35728
+  server.run ['server.js'], {}, 35730
 
 
 gulp.task 'pack', ->

@@ -18,12 +18,10 @@ APP.directive 'kxGrid', (
         headerTplUrl: 'defaultHeader.html'
         cellClass: ['no-overflow']
         cellTplUrl: 'defaultCell.html'
-        cellFilter: ''
       number:
         cellTplUrl: 'numberCell.html'
         headerClass: ['numeric', 'collapse']
         cellClass: ['numeric']
-        cellFilter: 'number:3'
         priority: 1
         precision: 0
       selection:
@@ -50,6 +48,9 @@ APP.directive 'kxGrid', (
         cellClass: ['actions-cell']
         headerClass: ['collapse']
         priority: 'persistent'
+      date:
+        cellTplUrl: 'dateCell.html'
+        dateFormat: 'll'
 
 
     # Data Processing Chain State
@@ -61,7 +62,7 @@ APP.directive 'kxGrid', (
     ## Non-pure way to two-way communication
     $scope.kxGrid.api =
       setVisibility: (field, isVisible) ->
-        _.findWhere($scope.$columns, {field}).isVisible = isVisible
+        _.findWhere($scope.$columns, {field}).$visible = isVisible
         ## TODO: Reset tablesaw
 
     getStartingPriority = (columns) ->
@@ -89,6 +90,11 @@ APP.directive 'kxGrid', (
       ## Phase 3 (Post)
       if column.isSortable
         column.headerClass.push 'sortable'
+
+      column.$visible = if column.isVisible instanceof Function
+        column.isVisible()
+      else
+        column.isVisible
 
       column
 
@@ -120,21 +126,24 @@ APP.directive 'kxGrid', (
     $scope.api =
       sort: sort
 
-    #class Sorter
-    #  state: {}
-    #  constructor: (options) ->
-    #  process: (data) ->
-    #    if @sorting
-    #      sorted = _.sortBy data, (d) ->
-    #        d[@sorting.field]
-    #      return sorted if @sorting.order == 'asc'
-    #      return _.foldr sorted, ((m, d) -> m.concat d), []
-    #    else
-    #      ## Pass through
-    #      data
-    #  init: (cb, data, columns) ->
-    #    @cb = cb
-    #  getParams: ->
+    class Sorter
+      state: {}
+      constructor: (options) ->
+      process: (data) ->
+        sorting = $scope.dpcState.sorting
+        if sorting
+          sorted = _.sortBy data, (d) ->
+            d[sorting.field]
+          return sorted if sorting.order == 'asc'
+          return _.foldr sorted, ((m, d) -> m.concat d), []
+        else
+          ## Pass through
+          data
+      init: (update, data, columns) ->
+        @update = update
+      getParams: (params) ->
+        $scope.dpcState.sorting
+      who: 'Sorter'
 
     #@scope.sorter = new Sorter()
 
@@ -149,25 +158,27 @@ APP.directive 'kxGrid', (
         input
 
     dataProcessingChain = [
-      #sortingProcessor
+      new Sorter()
     ].concat $scope.kxGrid.dataProcessingChain or []
 
-    ## Processor is optional param
-    $scope.update = (processor) ->
-      console.log $scope.kxGrid.data
-      if processor
-        console.log processor.who
-      $scope.$data = _.foldl dataProcessingChain, (m, p) ->
-        p.process m, $scope.dpcState
-      , $scope.kxGrid.data or []
+    $scope.update = if $scope.kxGrid.useBackend
+      ->
+        params = _.extend.apply _, _.map dataProcessingChain, (d) -> d.getParams($scope.dpcState) or {}
+        $scope.kxGrid.backend.provider(params).then (data) ->
+          $scope.$data = data
+    else
+      ->
+        $scope.$data = _.foldl dataProcessingChain, (m, p) ->
+          p.process m, $scope.dpcState
+        , $scope.kxGrid.data or []
 
     $scope.update()
 
     $scope.$watch 'kxGrid.data', (val) ->
+      unless val then return
       ## Init
       _.each dataProcessingChain, (d) ->
         d.init ->
-          console.log this
           $scope.update this
         , val or [], $scope.$columns
       $scope.update()

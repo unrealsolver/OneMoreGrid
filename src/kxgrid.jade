@@ -9,7 +9,7 @@ table.table.tablesaw.kxgrid(
         ng-repeat="col in $columns"
         ng-class="col.headerClass"
         data-tablesaw-priority="{{col.priority}}"
-        ng-if="col.isVisible"
+        ng-if="col.$visible"
         ng-click="col.isSortable && api.sort(col)"
       )
         ng-include(src="col.headerTplUrl")
@@ -26,7 +26,7 @@ table.table.tablesaw.kxgrid(
       td.kxtd(
         ng-repeat="col in $columns"
         ng-class="col.cellClass"
-        ng-if="col.isVisible"
+        ng-if="col.$visible"
         ng-include="col.cellTplUrl"
       ) 
     tr(

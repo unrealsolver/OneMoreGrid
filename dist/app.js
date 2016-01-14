@@ -1,6 +1,14 @@
 var APP;
 
-APP = angular.module('kxGrid', []);
+APP = angular.module('kxGrid', []).filter('momentDate', function() {
+  return function(inputValue, formatString) {
+    if (inputValue) {
+      return moment(inputValue).format(formatString);
+    } else {
+      return '';
+    }
+  };
+});
 
 APP.directive('kxGrid', function($timeout) {
   return {
@@ -10,7 +18,7 @@ APP.directive('kxGrid', function($timeout) {
       kxGrid: '='
     },
     controller: function($scope, $element) {
-      var dataProcessingChain, externalFilters, getStartingPriority, makePriorityOrderGenerator, pog, sort, sortingProcessor;
+      var Sorter, dataProcessingChain, externalFilters, getStartingPriority, makePriorityOrderGenerator, pog, sort, sortingProcessor;
       $scope.types = {
         "default": {
           type: 'default',
@@ -21,14 +29,12 @@ APP.directive('kxGrid', function($timeout) {
           headerClass: [],
           headerTplUrl: 'defaultHeader.html',
           cellClass: ['no-overflow'],
-          cellTplUrl: 'defaultCell.html',
-          cellFilter: ''
+          cellTplUrl: 'defaultCell.html'
         },
         number: {
           cellTplUrl: 'numberCell.html',
           headerClass: ['numeric', 'collapse'],
           cellClass: ['numeric'],
-          cellFilter: 'number:3',
           priority: 1,
           precision: 0
         },
@@ -63,6 +69,10 @@ APP.directive('kxGrid', function($timeout) {
           cellClass: ['actions-cell'],
           headerClass: ['collapse'],
           priority: 'persistent'
+        },
+        date: {
+          cellTplUrl: 'dateCell.html',
+          dateFormat: 'll'
         }
       };
       $scope.dpcState = {};
@@ -75,7 +85,7 @@ APP.directive('kxGrid', function($timeout) {
         setVisibility: function(field, isVisible) {
           return _.findWhere($scope.$columns, {
             field: field
-          }).isVisible = isVisible;
+          }).$visible = isVisible;
         }
       };
       getStartingPriority = function(columns) {
@@ -91,6 +101,7 @@ APP.directive('kxGrid', function($timeout) {
         if (column.isSortable) {
           column.headerClass.push('sortable');
         }
+        column.$visible = column.isVisible instanceof Function ? column.isVisible() : column.isVisible;
         return column;
       });
       externalFilters = _.chain($scope.column).where({
@@ -128,6 +139,42 @@ APP.directive('kxGrid', function($timeout) {
       $scope.api = {
         sort: sort
       };
+      Sorter = (function() {
+        Sorter.prototype.state = {};
+
+        function Sorter(options) {}
+
+        Sorter.prototype.process = function(data) {
+          var sorted, sorting;
+          sorting = $scope.dpcState.sorting;
+          if (sorting) {
+            sorted = _.sortBy(data, function(d) {
+              return d[sorting.field];
+            });
+            if (sorting.order === 'asc') {
+              return sorted;
+            }
+            return _.foldr(sorted, (function(m, d) {
+              return m.concat(d);
+            }), []);
+          } else {
+            return data;
+          }
+        };
+
+        Sorter.prototype.init = function(update, data, columns) {
+          return this.update = update;
+        };
+
+        Sorter.prototype.getParams = function(params) {
+          return $scope.dpcState.sorting;
+        };
+
+        Sorter.prototype.who = 'Sorter';
+
+        return Sorter;
+
+      })();
       sortingProcessor = function(input, ctx) {
         var sorted;
         if (ctx.sorting) {
@@ -144,21 +191,27 @@ APP.directive('kxGrid', function($timeout) {
           return input;
         }
       };
-      dataProcessingChain = [].concat($scope.kxGrid.dataProcessingChain || []);
-      $scope.update = function(processor) {
-        console.log($scope.kxGrid.data);
-        if (processor) {
-          console.log(processor.who);
-        }
+      dataProcessingChain = [new Sorter()].concat($scope.kxGrid.dataProcessingChain || []);
+      $scope.update = $scope.kxGrid.useBackend ? function() {
+        var params;
+        params = _.extend.apply(_, _.map(dataProcessingChain, function(d) {
+          return d.getParams($scope.dpcState) || {};
+        }));
+        return $scope.kxGrid.backend.provider(params).then(function(data) {
+          return $scope.$data = data;
+        });
+      } : function() {
         return $scope.$data = _.foldl(dataProcessingChain, function(m, p) {
           return p.process(m, $scope.dpcState);
         }, $scope.kxGrid.data || []);
       };
       $scope.update();
       $scope.$watch('kxGrid.data', function(val) {
+        if (!val) {
+          return;
+        }
         _.each(dataProcessingChain, function(d) {
           return d.init(function() {
-            console.log(this);
             return $scope.update(this);
           }, val || [], $scope.$columns);
         });
@@ -185,14 +238,13 @@ APP.directive('paginator', function() {
       var processor, state;
       processor = $scope.paginator;
       state = processor.state;
-      console.log(state);
       return $scope.next = function() {
-        if (state.page === state.total) {
+        if (state.page * state.size > state.total) {
           state.page = 1;
         } else {
-          state.page++;
+          state.page += state.size;
         }
-        return processor.cb();
+        return processor.update();
       };
     }
   };
